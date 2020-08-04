@@ -1,48 +1,161 @@
 package com.bida.httpconnection;
 
 import com.bida.httpconnection.domain.Category;
+import com.bida.httpconnection.domain.Status;
 import com.bida.httpconnection.domain.Tag;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.ResultSet;
+import java.time.Duration;
 
 public class Requests {
 
-    public void doPost(int id, String name, Category category, String[] photosURL, Tag[] tags) throws Exception{
-        URL url = new URL("https://petstore.swagger.io/v2/pet");
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setDoOutput(true);
+    private static Requests requests;
 
-        JSONObject body = generateJSONForPutPets(id, name, category, photosURL, tags);
+    private Requests(){}
 
-        System.out.println(body.toString());
+    public void doPostByIdNameStatus(int id, String name, Status status) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet/" + id;
 
-        OutputStream os = connection.getOutputStream();
-        byte[] input = body.toString().getBytes("utf-8");
-        os.write(input, 0, input.length);
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString("name=" + name + "&status=" + status.getName()))
+                .build();
 
-        try(BufferedReader br = new BufferedReader(
-                new InputStreamReader(connection.getInputStream(), "utf-8"))) {
-            StringBuilder response = new StringBuilder();
-            String responseLine = null;
-            while ((responseLine = br.readLine()) != null) {
-                response.append(responseLine.trim());
-            }
-            System.out.println(response.toString());
-        }
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
     }
 
-    private JSONObject generateJSONForPutPets(int id, String name, Category category, String[] photosURL, Tag[] tags){
+    public void doPutUpdateExistingPet(int id, String name, Category category, String[] photosURL, Tag[] tags, Status status) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet";
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(generateJSONForPutPets(id, name, category, photosURL, tags, status).toString()))
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+
+    public void doDeletePetByID(int id) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet/" + id;
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "application/json")
+                .DELETE()
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+
+    public void doGetByPetID(int id) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet/" + id;
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "application/json")
+                .GET()
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+
+    public void doGetPetsByStatus(Status status) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet/findByStatus?status=" + status.getName();
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "application/json")
+                .GET()
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+
+    public void doPostNewImage(int id, String filePath) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet/" + id + "/uploadImage";
+        byte[] array = Files.readAllBytes(Paths.get(filePath));
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "multipart/form-data")
+                .POST(HttpRequest.BodyPublishers.ofFile(Paths.get(filePath)))
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+
+    public void doPostNewPet(int id, String name, Category category, String[] photosURL, Tag[] tags, Status status) throws Exception{
+        String uri = "https://petstore.swagger.io/v2/pet";
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(uri))
+                .timeout(Duration.ofMinutes(1))
+                .header("accept", "application/json")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(generateJSONForPutPets(id, name, category, photosURL, tags, status).toString()))
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        System.out.println(response.body());
+    }
+
+    private JSONObject generateJSONForPutPets(int id, String name, Category category, String[] photosURL, Tag[] tags, Status status){
         JSONObject body = new JSONObject();
         body.put("id", id);
-        body.put("status", "available");
+        body.put("status", status.getName());
         body.put("name", name);
 
         JSONObject categoryJSON = new JSONObject();
@@ -54,5 +167,10 @@ public class Requests {
         body.put("photoUrls", photosURL);
 
         return body;
+    }
+
+    public static Requests createRequests(){
+        if (requests == null){requests = new Requests();}
+        return requests;
     }
 }
